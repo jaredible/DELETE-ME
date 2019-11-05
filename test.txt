@@ -1,0 +1,292 @@
+server {
+	listen 80;
+	listen [::]:80;
+	server_name api.jaredible.net;
+	
+	# redirect all HTTP requests to HTTPS with a 301 Moved Permanently response.
+	return 301 https://$host$request_uri;
+}
+
+server {
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name api.jaredible.net;
+	
+	ssl_certificate /etc/letsencrypt/live/api.jaredible.net/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/api.jaredible.net/privkey.pem;
+	ssl_session_timeout 1d;
+	ssl_session_cache shared:MozSSL:10m; # about 40000 sessions
+	ssl_session_tickets off;
+	
+	# intermediate configuration
+	ssl_protocols TLSv1.2;
+	ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+	ssl_prefer_server_ciphers on; # default was off
+	
+	# HSTS (ngx_http_headers_module is required) (63072000 seconds)
+	add_header Strict-Transport-Security "max-age=63072000" always;
+	
+	# OCSP stapling
+	ssl_stapling on;
+	ssl_stapling_verify on;
+	
+	resolver 8.8.8.8;
+	
+	location /socket.io/ {
+		proxy_http_version 1.1;
+		
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection "upgrade";
+		
+		proxy_pass "http://localhost:8888/socket.io/";
+	}
+	
+	location / {
+		proxy_pass http://localhost:8888/;
+	}
+}
+
+#server {
+#	listen 80;
+#	listen [::]:80;
+#	server_name umsl.jaredible.net;
+#	
+#	# redirect all HTTP requests to HTTPS with a 301 Moved Permanently response.
+#	return 301 https://$host$request_uri;
+#}
+
+#upstream jenkins {
+#	keepalive 32; # keepalive connections
+#	server 127.0.0.1:8080; # jenkins ip and port
+#}
+
+#server {
+#	listen 80; # Listen on port 80 for IPv4 requests
+#	server_name umsl.jaredible.net;
+#	
+#	# this is the jenkins web root directory (mentioned in the /etc/default/jenkins file)
+#	root /var/lib/tomcat8/webabpps;
+#	
+#	#access_log /var/log/nginx/jenkins/access.log;
+#	#error_log /var/log/nginx/jenkins/error.log;
+#	ignore_invalid_headers off; # pass through headers from Jenkins which are considered invalid by Nginx server.
+#
+#	location ~ "^/static/[0-9a-fA-F]{8}\/(.*)$" {
+#		# rewrite all static files into requests to the root
+#		# E.g /static/12345678/css/something.css will become /css/something.css
+#		rewrite "^/static/[0-9a-fA-F]{8}\/(.*)" /$1 last;
+#	}
+#	
+#	location /userContent {
+#		# have nginx handle all the static requests to the userContent folder files
+#		# note : This is the $JENKINS_HOME dir
+#		root /var/lib/tomcat8/webapps/jenkins/;
+#		if (!-f $request_filename){
+#			# this file does not exist, might be a directory or a /**view** url
+#			rewrite (.*) /$1 last;
+#			break;
+#		}
+#		sendfile on;
+#	}
+#	
+#	location / {
+#		sendfile off;
+#		proxy_pass http://localhost:8080;
+#		proxy_redirect default;
+#		proxy_http_version 1.1;
+#
+#		proxy_set_header Host $host;
+#		proxy_set_header X-Real-IP $remote_addr;
+#		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#		proxy_set_header X-Forwarded-Proto $scheme;
+#		proxy_max_temp_file_size 0;
+#		
+#		# this is the maximum upload size
+#		client_max_body_size 10m;
+#		client_body_buffer_size 128k;
+#		
+#		proxy_connect_timeout 90;
+#		proxy_send_timeout 90;
+#		proxy_read_timeout 90;
+#		proxy_buffering off;
+#		proxy_request_buffering off; # Required for HTTP CLI commands in Jenkins > 2.54
+#		proxy_set_header Connection ""; # Clear for keepalive
+#	}
+#}
+
+#server {
+#	listen 443 ssl http2;
+#	listen [::]:443 ssl http2;
+#	server_name umsl.jaredible.net;
+#	root /var/lib/tomcat8/webapps;
+#	
+#	ssl_certificate /etc/letsencrypt/live/umsl.jaredible.net/fullchain.pem;
+#	ssl_certificate_key /etc/letsencrypt/live/umsl.jaredible.net/privkey.pem;
+#	ssl_session_timeout 1d;
+#	ssl_session_cache shared:MozSSL:10m; # about 40000 sessions
+#	ssl_session_tickets off;
+#	
+#	# intermediate configuration
+#	ssl_protocols TLSv1.2;
+#	ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+#	ssl_prefer_server_ciphers on; # default was off
+#	
+#	# HSTS (ngx_http_headers_module is required) (63072000 seconds)
+#	add_header Strict-Transport-Security "max-age=63072000" always;
+#	
+#	# OCSP stapling
+#	ssl_stapling on;
+#	ssl_stapling_verify on;
+#	
+#	resolver 8.8.8.8;
+#	
+#	location / {
+#		proxy_set_header X-Forwarded-Host $host;
+#		proxy_set_header X-Forwarded-Server $host;
+#		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#		proxy_pass http://localhost:8080/;
+#	}
+#}
+
+#server {
+#	listen 80;
+#	server_name jareddiehl.me www.jareddiehl.me;
+#	location / {
+#		proxy_pass http://localhost:8000;
+#	}
+#}
+
+server {
+	listen 80;
+	listen [::]:80;
+	server_name jaredible.net www.jaredible.net;
+	
+	# redirect all HTTP requests to HTTPS with a 301 Moved Permanently response.
+	return 301 https://$host$request_uri;
+}
+
+server {
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name jaredible.net www.jaredible.net;
+	
+	ssl_certificate /etc/letsencrypt/live/jaredible.net/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/jaredible.net/privkey.pem;
+	ssl_session_timeout 1d;
+	ssl_session_cache shared:MozSSL:10m; # about 40000 sessions
+	ssl_session_tickets off;
+	
+	# intermediate configuration
+	ssl_protocols TLSv1.2;
+	ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+	ssl_prefer_server_ciphers on; # default was off
+	
+	# HSTS (ngx_http_headers_module is required) (63072000 seconds)
+	add_header Strict-Transport-Security "max-age=63072000" always;
+	
+	# OCSP stapling
+	ssl_stapling on;
+	ssl_stapling_verify on;
+	
+	resolver 8.8.8.8;
+	
+	location / {
+		proxy_pass "http://localhost:4000";
+	}
+}
+
+server {
+	listen 80;
+	listen [::]:80;
+	server_name pong.jaredible.net;
+	
+	# redirect all HTTP requests to HTTPS with a 301 Moved Permanently response.
+	return 301 https://$host$request_uri;
+}
+
+server {
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name pong.jaredible.net;
+	
+	ssl_certificate /etc/letsencrypt/live/pong.jaredible.net/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/pong.jaredible.net/privkey.pem;
+	ssl_session_timeout 1d;
+	ssl_session_cache shared:MozSSL:10m; # about 40000 sessions
+	ssl_session_tickets off;
+	
+	# intermediate configuration
+	ssl_protocols TLSv1.2;
+	ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+	ssl_prefer_server_ciphers on; # default was off
+	
+	# HSTS (ngx_http_headers_module is required) (63072000 seconds)
+	add_header Strict-Transport-Security "max-age=63072000" always;
+	
+	# OCSP stapling
+	ssl_stapling on;
+	ssl_stapling_verify on;
+	
+	resolver 8.8.8.8;
+	
+	location /socket.io/ {
+		proxy_http_version 1.1;
+		
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection "upgrade";
+		
+		proxy_pass "http://localhost:3000/socket.io/";
+	}
+	
+	location / {
+		proxy_pass "http://localhost:3000";
+	}
+}
+
+#server {
+#	listen 80;
+#	server_name blog.jaredible.net;
+#	location / {
+#		proxy_pass http://localhost:4000;
+#	}
+#}
+
+server {
+	listen 80;
+	server_name v3.neckerlove.com;
+	location / {
+		proxy_pass http://localhost:1337;
+	}
+}
+
+server {
+	listen 80;
+	server_name *.umslcomputingclub.net noti.jaredible.net;
+	location / {
+		proxy_pass http://localhost:1300;
+	}
+}
+
+#server {
+#	listen 80;
+#	
+#	root /var/www/;
+#	index index.php index.html index.htm;
+#	
+#	server_name aluminis.net;
+#	
+#	location / {
+#		try_files $uri $uri/ /index.php;
+#	}
+#	
+#	location ~ \.php$ {
+#		proxy_set_header X-Real-IP $remote_addr;
+#		proxy_set_header X-Forwarded-For $remote_addr;
+#		proxy_set_header Host $host;
+#		proxy_pass http://localhost:8080;
+#	}
+#	
+#	location ~ /\.ht {
+#		deny all;
+#	}
+#}
