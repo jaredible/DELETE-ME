@@ -38,7 +38,7 @@ int main(const int argc, char *const argv[])
         switch (opt)
         {
         case 'h':
-            printf("Usage: %s [-n number]\n", argv[0]);
+            printf("Usage: %s -n numbers...\n", argv[0]);
             return EXIT_SUCCESS;
         case 'n':
             printf("%s\n", optarg);
